@@ -47,6 +47,11 @@ _.angle  = function () {
     return Math.atan2(me.y, me.x);
 };
 
+_.angleTo  = function (o) {
+    var me = this;
+    return me.clone().add(o.clone().mul(-1)).angle();
+};
+
 _.copyFrom = function (o) {
     var me = this;
     me.x = o.x;
@@ -204,8 +209,10 @@ _.draw = function (g,ctx) {
     ctx.restore();
 }
 
-function Ship(){
-    GO.call(this,{});
+function Ship(p){
+    p = p || {};
+    GO.call(this,p);
+    this.hullColor = p.hullColor || "blue"
     this.init();
 }
 
@@ -242,7 +249,7 @@ _.update = function (g) {
 _.draw = function(g,ctx){
     var me = this;
     ctx.save();
-    ctx.fillStyle = "blue";;
+    ctx.fillStyle = me.hullColor;
     ctx.translate(me.pos.x, me.pos.y);
     var size = 10.0;
     ctx.rotate(me.angle - PI*0.5);
@@ -259,6 +266,54 @@ _.draw = function(g,ctx){
     ctx.globalAlpha = 0.6;
     ctx.fill();
     ctx.restore();
+};
+
+function EnemyShip () {
+    Ship.call(this,{hullColor:"red",});
+    this.pos.copyFrom(new V2(rnd()*W,rnd()*H));
+    this.lastThrottle = 0;
+}
+
+_=chain(EnemyShip,Ship);
+
+_.update = function (g) {
+    var me = this;
+    Ship.prototype.update.call(me, g);
+
+    if (me.health<=0){
+        g.enemies.remove(me);
+        g.spawnCollectibles(me.pos);
+        return;
+    }
+    var targetAngle = g.ship.pos.angleTo(me.pos);
+
+    me.angle+=(targetAngle - me.angle)*0.9;
+
+    if (me.pos.dist(g.ship.pos) > 50){
+        if ((g.time - me.lastThrottle > 1000)){
+            me.throttle=Math.min(me.throttle+0.2,MAX_THROTTLE);
+            me.lastThrottle = g.time;
+        }else{
+            me.throttle*=0.99;
+            me.vel.mul(0.99);
+        }
+    }else{
+        me.throttle*=0;
+        me.vel.mul(0.5);
+    }
+
+
+    if (g.time - me.lastShot>300 && me.pos.dist(g.ship.pos) < 180) {
+        g.bullets.add(new EnemyBullet({pos:me.pos.clone(), vel:(new V2()).fromAngle(me.angle,5)}));
+        me.lastShot = g.time;
+    }
+
+    var force = (new V2()).fromAngle(me.angle, me.throttle);
+
+    if (new V2().copyFrom(me.vel).add(force).dist(V2Zero)<MAX_SPEED){
+        me.vel.add(force);
+    };
+
 };
 
 function PlayerShip () {
@@ -433,8 +488,47 @@ _.update = function (g) {
         tmp.fromAngle(tmp.angle(),Math.min(1+g.upgrades.autoaim*0.25,3));
         me.vel.add(tmp);
     }
+    var enemies = g.enemies.list;
+    if (enemies.length<=0){
+        return;
+    }
+    var found = false;
+    enemies.forEach(function(o){
+        if (found){
+            return;
+        }
+        if (o.pos.dist(me.pos)<15){
+            o.damage(20);
+            g.bullets.remove(me);
+            found=true;
+        }
+    });
 
 }
+
+function EnemyBullet(o){
+    Bullet.call(this,o);
+    this.color = "#f92";
+    this.size = 3;
+}
+
+_ = chain(EnemyBullet,Bullet);
+
+_.update = function (g) {
+    Dot.prototype.update.call(this, g);
+    var me = this;
+    me.alpha *= 0.96;
+    if (me.alpha < 0.1) {
+        g.bullets.remove(this);
+        return;
+    }
+
+    if (me.pos.dist(g.ship.pos) < 15){
+        g.ship.damage(2);
+        g.bullets.remove(me);
+        return;
+    }
+};
 
 function Particle (o) {
     Dot.call(this,o);
@@ -563,6 +657,7 @@ function reset(g) {
     g.particles.clear();
     g.bullets.clear();
     g.texts.clear();
+    g.enemies.clear();
 }
 
 function update(g) {
@@ -593,6 +688,10 @@ function spawnAsteroids(g){
     for (var i = n;i>=0;--i) {
         g.asteroids.add(new Asteroid());
     }
+    for (var i = Math.round(Math.log2(g.stage+1)); i>0; --i){
+        g.enemies.add(new EnemyShip());
+    }
+
     g.texts.add(new TextLabel("Stage " + g.stage));
     g.stage++;
 }
@@ -605,8 +704,8 @@ function draw(g) {
     ctx.fillStyle = "#fff";
     g.lists.draw(g,ctx);
     g.ship.draw(g,ctx);
-    g.font="20px Courier New";
-    ctx.fillText("Score: " + g.score,30,20);
+    ctx.font="26px Courier New";
+    ctx.fillText("Score: " + g.score,30,25);
     if (!g.paused){
         return;
     }
@@ -670,6 +769,7 @@ var globals = {
         dots: null,
         particles: null,
         asteroids: null,
+        enemies: null,
         bullets: null,
         collectibles: null,
         texts: null,
@@ -735,6 +835,7 @@ function initialize(){
     g.lists.add(g.particles = new GOList());
     g.lists.add(g.asteroids = new GOList());
     g.lists.add(g.bullets = new GOList());
+    g.lists.add(g.enemies = new GOList());
     g.lists.add(g.collectibles = new GOList());
     g.lists.add(g.texts = new GOList());
     for (var i = 0; i<256; ++i){
