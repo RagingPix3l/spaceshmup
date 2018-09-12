@@ -453,6 +453,34 @@ _.update=function(g) {
     }
 };
 
+function TextLabel (txt) {
+    GO.call(this,{});
+    this.txt = txt;
+    this.pos.y = H*0.5 + globals.game.texts.list.length*25;
+    this.pos.x = W*0.5 - this.txt.length * 7;
+    this.alphaV = 0.97;
+}
+
+_ = chain(TextLabel,GO);
+
+_.draw = function(g,ctx) {
+    ctx.save();
+    ctx.strokeStyle = "gold";
+    ctx.font = "30px Courier New";
+    ctx.globalAlpha = this.alpha;
+    ctx.strokeText(this.txt, this.pos.x, this.pos.y);
+    ctx.restore();
+
+};
+
+_.update = function (g) {
+    GO.prototype.update.call(this,g);
+    this.alpha*=this.alphaV;
+    if (this.alpha<0.01){
+        g.texts.remove(this);
+    }
+};
+
 function Star (o){
     Dot.call(this,o);
     this.color = "#fff";
@@ -526,6 +554,7 @@ _.remove = function (o) {
 
 function reset(g) {
     g.score = 0;
+    g.stage = 1;
     g.ship.reset();
     g.collectibles.clear();
     g.asteroids.list.forEach(function(o){
@@ -533,6 +562,7 @@ function reset(g) {
     });
     g.particles.clear();
     g.bullets.clear();
+    g.texts.clear();
 }
 
 function update(g) {
@@ -558,9 +588,13 @@ function update(g) {
 }
 
 function spawnAsteroids(g){
-    for (var i = 0; i<2;++i) {
+    var n = Math.round(1 + Math.log2(g.stage+1));
+
+    for (var i = n;i>=0;--i) {
         g.asteroids.add(new Asteroid());
     }
+    g.texts.add(new TextLabel("Stage " + g.stage));
+    g.stage++;
 }
 
 function draw(g) {
@@ -630,6 +664,7 @@ var globals = {
     ctx: null,
     game : {
         score: 0,
+        stage: 1,
         paused: false,
         ship: null,
         dots: null,
@@ -637,7 +672,7 @@ var globals = {
         asteroids: null,
         bullets: null,
         collectibles: null,
-
+        texts: null,
         upgrades:{
             magnet: 0,
             autoaim: 0,
@@ -693,7 +728,7 @@ function initialize(){
         g.score+=v;
     };
 
-    g.score = 9999;
+    g.score = 0;
     g.ship = new PlayerShip();
     g.lists = new GOList();
     g.lists.add(g.dots = new GOList());
@@ -701,11 +736,13 @@ function initialize(){
     g.lists.add(g.asteroids = new GOList());
     g.lists.add(g.bullets = new GOList());
     g.lists.add(g.collectibles = new GOList());
+    g.lists.add(g.texts = new GOList());
     for (var i = 0; i<256; ++i){
         globals.keys[i] = false;
         g.dots.add(new Star({pos:new V2(rnd()*W,rnd()*H),size:(0.5+rnd()*2)}));
     }
     g.dots.list = g.dots.list.sort(function (a,b) { return a.size - b.size; });
+    reset(g);
     winlisten("keyup", function (e) { onkey(e,false);});
     winlisten("keydown", function (e) { onkey(e,true);});
     winlisten("click", onclick);
