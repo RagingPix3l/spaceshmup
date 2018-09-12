@@ -461,10 +461,11 @@ _ = chain(Bullet,Dot);
 
 _.beforeRemoval = function (g) {
     var me = this;
-    if (g.upgrades.explosiv>0){
+    if (g.upgrades.explosiv>0 && !me.exploded){
         var n = (g.upgrades.explosiv + rnd()*g.upgrades.explosiv)<<0;
         for (var j = 0;j<n;++j){
-            g.bullets.add(new Bullet({pos:me.pos.clone(),vel:(new V2()).fromAngle(rnd()*PI*2,5)}));
+            var bullet = g.bullets.add(new Bullet({pos:me.pos.clone(),vel:(new V2()).fromAngle(rnd()*PI*2,5)}));
+            bullet.exploded = true;
         }
     }
 };
@@ -497,7 +498,7 @@ _.update = function (g) {
             }
         }
     }
-    if (g.upgrades.autoaim>0 && minDist<30+g.upgrades.autoaim*25){
+    if (g.enemies.length <= 0 && g.upgrades.autoaim>0 && minDist<30+g.upgrades.autoaim*25){
         var tmp = V2Zero.clone();
         tmp.add(me.pos);
         tmp.mul(-1);
@@ -753,34 +754,22 @@ function draw(g) {
     ctx.strokeText(txt, W*0.5 - txt.length*6.5,H*0.25 + 110);
 
     ctx.font="25px Courier New";
-    txt = "1.Magnet lvl " + (g.upgrades.magnet+1) + " *: " + calculateUpgradeCost(g.upgrades.magnet);
-    if (g.score >= calculateUpgradeCost(g.upgrades.magnet)){
-        ctx.strokeStyle = "#0f0";
-    }else{
-        ctx.strokeStyle = "#f00";
+
+    var upgrades = [{p:"magnet"},
+                    {p:"autoaim"},
+                    {p:"regen"},
+                    {p:"explosiv"},
+    ];
+    for (var i = 0;i<upgrades.length;++i){
+        txt = (i+1) + "." + upgrades[i].p + " lvl " + (g.upgrades[upgrades[i].p]+1) + " *: " + calculateUpgradeCost(g.upgrades[upgrades[i].p]);
+        if (g.score >= calculateUpgradeCost(g.upgrades[upgrades[i].p])){
+            ctx.strokeStyle = "#0f0";
+        }else{
+            ctx.strokeStyle = "#f00";
+        }
+        ctx.strokeText(txt, W*0.5 - txt.length*7.5,H*0.25 + 150 + 28*i);
     }
-    ctx.strokeText(txt, W*0.5 - txt.length*7.5,H*0.25 + 150);
-    txt = "2.AutoAim lvl " + (g.upgrades.autoaim+1) + " *: " + calculateUpgradeCost(g.upgrades.autoaim);
-    if (g.score >= calculateUpgradeCost(g.upgrades.autoaim)){
-        ctx.strokeStyle = "#0f0";
-    }else{
-        ctx.strokeStyle = "#f00";
-    }
-    ctx.strokeText(txt, W*0.5 - txt.length*7.5,H*0.25 + 174);
-    txt = "3.Repairs lvl " + (g.upgrades.regen+1) + " *: " + calculateUpgradeCost(g.upgrades.regen);
-    if (g.score >= calculateUpgradeCost(g.upgrades.regen)){
-        ctx.strokeStyle = "#0f0";
-    }else{
-        ctx.strokeStyle = "#f00";
-    }
-    ctx.strokeText(txt, W*0.5 - txt.length*7.5,H*0.25 + 198);
-    txt = "4.Explosiv lvl " + (g.upgrades.explosiv+1) + " *: " + calculateUpgradeCost(g.upgrades.explosiv);
-    if (g.score >= calculateUpgradeCost(g.upgrades.explosiv)){
-        ctx.strokeStyle = "#0f0";
-    }else{
-        ctx.strokeStyle = "#f00";
-    }
-    ctx.strokeText(txt, W*0.5 - txt.length*7.5,H*0.25 + 222);
+
     ctx.restore();
 }
 function calculateUpgradeCost(lvl) {
