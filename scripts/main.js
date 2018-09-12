@@ -233,7 +233,11 @@ _.reset = function () {
 
 _.damage = function (v) {
     var me=this;
-    me.health=Math.max(me.health-v,0);
+    me.health=Math.min(MAX_HEALTH,Math.max(me.health-v,0));
+};
+
+_.repair = function (v) {
+    this.damage(-v);
 };
 
 _.update = function (g) {
@@ -346,6 +350,9 @@ _.update = function (g) {
   if (new V2().copyFrom(me.vel).add(force).dist(V2Zero)<MAX_SPEED){
       me.vel.add(force);
   };
+  if (g.upgrades.regen > 0 && me.health<MAX_HEALTH){
+      me.damage(-(g.upgrades.regen*0.04));
+  }
 };
 _.draw = function (g,ctx) {
     var me = this;
@@ -452,6 +459,15 @@ function Bullet (o) {
 
 _ = chain(Bullet,Dot);
 
+_.beforeRemoval = function (g) {
+    var me = this;
+    if (g.upgrades.explosiv>0){
+        var n = (g.upgrades.explosiv + rnd()*g.upgrades.explosiv)<<0;
+        for (var j = 0;j<n;++j){
+            g.bullets.add(new Bullet({pos:me.pos.clone(),vel:(new V2()).fromAngle(rnd()*PI*2,5)}));
+        }
+    }
+};
 _.update = function (g) {
     Dot.prototype.update.call(this,g);
     var me = this;
@@ -470,6 +486,7 @@ _.update = function (g) {
         var stone = stones.list[i];
         if (stone.scaleV == 1){
             if (stone.pos.dist(me.pos)<stone.size+me.size) {
+                me.beforeRemoval(g);
                 g.bullets.remove(this);
                 stone.startShrink();
                 return;
@@ -499,6 +516,7 @@ _.update = function (g) {
         }
         if (o.pos.dist(me.pos)<15){
             o.damage(20);
+            me.beforeRemoval(g);
             g.bullets.remove(me);
             found=true;
         }
@@ -747,6 +765,20 @@ function draw(g) {
         ctx.strokeStyle = "#f00";
     }
     ctx.strokeText(txt, W*0.5 - txt.length*7.5,H*0.25 + 174);
+    txt = "3.Repairs lvl " + (g.upgrades.regen+1) + " *: " + calculateUpgradeCost(g.upgrades.regen);
+    if (g.score >= calculateUpgradeCost(g.upgrades.regen)){
+        ctx.strokeStyle = "#0f0";
+    }else{
+        ctx.strokeStyle = "#f00";
+    }
+    ctx.strokeText(txt, W*0.5 - txt.length*7.5,H*0.25 + 198);
+    txt = "4.Explosiv lvl " + (g.upgrades.explosiv+1) + " *: " + calculateUpgradeCost(g.upgrades.explosiv);
+    if (g.score >= calculateUpgradeCost(g.upgrades.explosiv)){
+        ctx.strokeStyle = "#0f0";
+    }else{
+        ctx.strokeStyle = "#f00";
+    }
+    ctx.strokeText(txt, W*0.5 - txt.length*7.5,H*0.25 + 222);
     ctx.restore();
 }
 function calculateUpgradeCost(lvl) {
@@ -776,6 +808,8 @@ var globals = {
         upgrades:{
             magnet: 0,
             autoaim: 0,
+            regen: 0,
+            explosiv: 0,
         },
 
     }
@@ -788,20 +822,29 @@ function onkey(e, state){
     if (state && String.fromCharCode(e.keyCode) == "P"){
         g.paused = !globals.game.paused;
     }
+    var powerUp = "";
     if (g.paused && firstPress){
         switch (String.fromCharCode(e.keyCode)) {
             case "1":
-                if (g.score >= calculateUpgradeCost(g.upgrades.magnet)) {
-                    g.score -= calculateUpgradeCost(g.upgrades.magnet);
-                    g.upgrades.magnet++;
-                }
+                powerUp = "magnet";
                 break;
             case "2":
-                if (g.score >= calculateUpgradeCost(g.upgrades.autoaim)) {
-                    g.score -= calculateUpgradeCost(g.upgrades.autoaim);
-                    g.upgrades.autoaim++;
-                }
+                powerUp = "autoaim";
                 break;
+            case "3":
+                powerUp = "regen";
+                break;
+            case "4":
+                powerUp = "explosiv";
+                break;
+        }
+        if (!powerUp.length){
+            return;
+        }
+        var cost = calculateUpgradeCost(g.upgrades[powerUp]);
+        if (g.score >= cost) {
+            g.score -= cost;
+            g.upgrades[powerUp]++;
         }
     }
 }
