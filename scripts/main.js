@@ -844,6 +844,14 @@ function onclick(e){
     globals.game.paused = !globals.game.paused;
 }
 
+function onresize(){
+    var canvas = document.getElementById("canvas");
+    var sizeW = window.innerWidth;
+    var sizeH = window.innerHeight;
+    canvas.style.marginTop = (sizeH - H)*0.5 + "px";
+    canvas.style.marginLeft = (sizeW - W)*0.5 + "px";
+}
+
 function initialize(){
     var canvas = document.getElementById("canvas");
     var ctx = globals.ctx = canvas.getContext("2d");
@@ -881,6 +889,8 @@ function initialize(){
     winlisten("keyup", function (e) { onkey(e,false);});
     winlisten("keydown", function (e) { onkey(e,true);});
     winlisten("click", onclick);
+    winlisten("resize", onresize);
+    onresize();
     onclick();
     window.setInterval(mainloop, 1000/50);
 }
