@@ -477,12 +477,12 @@ _.update = function (g) {
         return;
     }
     var stones = g.asteroids;
-    if (!stones.list.length>0){
+    if (!stones.length>0){
         return;
     }
     var minDist = stones.list[0].pos.dist(me.pos);
     var minDistIndex = 0;
-    for (var i = stones.list.length - 1; i>=0 ; i--){
+    for (var i = stones.length - 1; i>=0 ; i--){
         var stone = stones.list[i];
         if (stone.scaleV == 1){
             if (stone.pos.dist(me.pos)<stone.size+me.size) {
@@ -568,7 +568,7 @@ _.update=function(g) {
 function TextLabel (txt) {
     GO.call(this,{});
     this.txt = txt;
-    this.pos.y = H*0.5 + globals.game.texts.list.length*25;
+    this.pos.y = H*0.5 + globals.game.texts.length*25;
     this.pos.x = W*0.5 - this.txt.length * 7;
     this.alphaV = 0.97;
 }
@@ -623,6 +623,8 @@ function GOList (o) {
 
 _ = chain(GOList, GO);
 
+Object.defineProperty(_,'length', {get:function(){return this.list.length;}});
+
 _.update=function(g) {
     var me=this;
     GO.prototype.update.call(me,g);
@@ -650,12 +652,12 @@ _.add = function (o) {
 };
 
 _.random = function () {
-    return this.list[(this.list.length*rnd())>>0];
+    return this.list[(this.length*rnd())>>0];
 }
 
 _.remove = function (o) {
     var me = this;
-    for (var i = me.list.length - 1;i>=0;--i){
+    for (var i = me.length - 1;i>=0;--i){
         if (me.list[i] === o){
             me.list[i] = me.list[me.list.length-1];
             me.list.length--;
@@ -691,7 +693,7 @@ function update(g) {
         reset(g);
     }
 
-    if (g.asteroids.list.length<=0){
+    if (g.asteroids.length<=0){
         spawnAsteroids(g);
     }
     if (rnd()<0.05){
